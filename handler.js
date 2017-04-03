@@ -31,17 +31,16 @@ module.exports.mewsic = (event, context, callback) => {
 
 module.exports.artist = (event, context, callback) => {
   var artist = event.queryStringParameters.text.replace(" ", "+")
-  var spotifyUrl = "https://api.spotify.com/v1/search?q=" + artist + "&type=artist"
+  var spotify_url = "https://api.spotify.com/v1/search?q=" + artist + "&type=artist"
   console.log("artist end point begun for " + artist)
 
-  getContent(spotifyUrl)
+  getContent(spotify_url)
     .then((content) => next_request(content))
     .catch((err) => console.error(err));
 
   var next_request = function(content) {
     var parsed = JSON.parse(content)
     var link = parsed.artists.items[0].external_urls.spotify;
-    console.log(link)
     // to ensure last fm bio matches, pull it from Spotify request
     var artist_name = parsed.artists.items[0].name.replace(" ", "+")
     var lastFmUrl = 'https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' + artist_name + '&api_key=' + process.env.LAST_FM + '&format=json'
@@ -56,32 +55,77 @@ module.exports.artist = (event, context, callback) => {
             link: bio[0] + " ... " + link
           })
         } // end response
+        console.log("sending artist callback " + response.body)
         callback(null, response);
       })
       .catch((err) => console.error(err));
+      // add an error response?
   }
 };
 
 module.exports.album = (event, context, callback) => {
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: 'Album Endpoint',
-      input: event,
-    }),
-  };
-  callback(null, response);
+  var album = event.queryStringParameters.text
+  console.log("Album request began for " + album)
+  var artistUrl = 'https://api.spotify.com/v1/search?q=' + album.replace(" ", "+") + '&type=album'
+
+  getContent(artistUrl)
+    .then((content) => parse_response(content))
+    .catch((err) => console.error(err));
+
+  var parse_response = function(content) {
+    var parsed = JSON.parse(content)
+    if (parsed.albums.items.length > 0) {
+      var albumName = parsed.albums.items[0].name
+      var albumLink = parsed.albums.items[0].external_urls.spotify
+      var albumArt = parsed.albums.items[0].images[0].url
+      const response = {
+        statusCode: 200,
+        body: JSON.stringify({
+          "response_type": "in_channel",
+          "text": albumLink,
+          "attachments": [
+          {
+            "title": albumName,
+            "image_url": albumArt
+          }]
+        })
+      };
+      console.log("sending album callback " + response.body)
+      callback(null, response);
+    }
+  }
 };
 
 module.exports.genius = (event, context, callback) => {
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: 'Genius Endpoint',
-      input: event,
-    }),
-  };
-  callback(null, response);
+  var lyrics = event.queryStringParameters.text
+  console.log("genius request begun for " + lyrics)
+  var genius_url = "https://api.genius.com/search?access_token=" + process.env.GENIUS_ACCESS + "&q=" + lyrics
+
+  getContent(genius_url)
+    .then((content) => parse_response(content))
+    .catch((err) => console.error(err));
+
+  var parse_response = function(content) {
+    var parsed = JSON.parse(content)
+    if (parsed.response.hits.length > 0) {
+      var song_url = parsed.response.hits[0].result.url;
+      var song_title = parsed.response.hits[0].result.full_title
+      var song_image = parsed.response.hits[0].result.header_image_thumbnail_url;
+      const response = {
+        statusCode: 200,
+        body: JSON.stringify({
+        "response_type": "in_channel",
+        "attachments": [{
+          "title": song_title,
+          "title_link": song_url,
+          "image_url": song_image
+        }]
+      })
+    }
+    console.log("sending genius callback " + response.body)
+    callback(null, response);
+    }
+  }
 };
 
 module.exports.concert = (event, context, callback) => {

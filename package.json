@@ -4,7 +4,7 @@
   "description": "a magical music slack bot",
   "main": "handler.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --recursive"
+    "test": "./node_modules/.bin/mocha --recursive --timeout 3000"
   },
   "author": "Lucas Moore",
   "license": "MIT",
