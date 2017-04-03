@@ -35,44 +35,31 @@ module.exports.artist = (event, context, callback) => {
   console.log("artist end point begun for " + artist)
 
   getContent(spotifyUrl)
-    .then((resp) => parse_info(resp))
+    .then((content) => next_request(content))
     .catch((err) => console.error(err));
 
-  var parse_info = function(answer) {
-    var resp = JSON.parse(answer)
-    var link = resp.artists.items[0].external_urls.spotify;
-    const response = {
-      statusCode: 200,
-      body: JSON.stringify({
-        response_type: "in_channel",
-        link: link
+  var next_request = function(content) {
+    var parsed = JSON.parse(content)
+    var link = parsed.artists.items[0].external_urls.spotify;
+    console.log(link)
+    // to ensure last fm bio matches, pull it from Spotify request
+    var artist_name = parsed.artists.items[0].name.replace(" ", "+")
+    var lastFmUrl = 'https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' + artist_name + '&api_key=' + process.env.LAST_FM + '&format=json'
+      getContent(lastFmUrl)
+      .then(function(last_fm_response) {
+        var last_resp = JSON.parse(last_fm_response)
+        var bio = last_resp.artist.bio.summary.split("<a");
+        const response = {
+          statusCode: 200,
+          body: JSON.stringify({
+            response_type: "in_channel",
+            link: bio[0] + " ... " + link
+          })
+        } // end response
+        callback(null, response);
       })
-    } // end response
-    callback(null, response);
+      .catch((err) => console.error(err));
   }
-
-  // var link_string = function() {
-  //   var response_body = ""
-  //   getContent(spotifyUrl)
-  //   .then(function(answer) {
-  //     var resp = JSON.parse(answer)
-  //     var link = resp.artists.items[0].external_urls.spotify;
-  //     response_body.push(link)
-  //
-  //
-  //     done();
-  //     // var artist_name = resp.artists.items[0].name.replace(" ", "+")
-  //     // var lastFmUrl = 'https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' + artist_name + '&api_key=' + process.env.LAST_FM + '&format=json'
-  //     //   getContent(lastFmUrl)
-  //     //   .then(function(response) {
-  //     //     var last_resp = JSON.parse(response)
-  //     //     console.log(last_resp)
-  //     //   })
-  //   //     .catch((err) => console.error(err));
-  //   })
-  //   .catch((err) => console.error(err));
-  // };
-
 };
 
 module.exports.album = (event, context, callback) => {

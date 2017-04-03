@@ -20,7 +20,7 @@ describe( 'mewsicLambda', function() {
 
       let response = JSON.stringify({
         response_type: "in_channel",
-        link: "https://open.spotify.com/artist/73sIBHcqh3Z3NyqHKZ7FOL"
+        link: "Donald McKinley Glover (/ˈɡlʌvər/; born September 25, 1983) is an American actor, comedian and musician. As a recording artist, he usually performs with the stage name Childish Gambino. While a disk jockey, he performs as mcDJ. He first came to attention for his work with Derrick Comedy and with the help of Tina Fey, was hired at the age of 21 to become a writer for the NBC comedy series 30 Rock. He later played college student Troy Barnes on the NBC sitcom Community.  ... https://open.spotify.com/artist/73sIBHcqh3Z3NyqHKZ7FOL"
       })
 
       LambdaTester( mewsicLambda.artist )
