@@ -18,6 +18,11 @@ const getContent = function(url) {
   })
 };
 
+// JavaScript. 'Tis a silly language.
+var capitalize = function(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+}
+
 module.exports.mewsic = (event, context, callback) => {
   const response = {
     statusCode: 200,
@@ -129,12 +134,55 @@ module.exports.genius = (event, context, callback) => {
 };
 
 module.exports.concert = (event, context, callback) => {
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: 'Concert Endpoint',
-      input: event,
-    }),
-  };
-  callback(null, response);
-};
+  var text = event.queryStringParameters.text.split(", ")
+  var location = text[0];
+  var artist = text[1];
+  var concertArtist = artist.replace(" ", "+")
+  var locationUrl = 'https://api.songkick.com/api/3.0/search/locations.json?query=' + location + '&apikey=' + process.env.SONGKICK_API
+
+  getContent(locationUrl)
+    .then((content) => next_request(content))
+    .catch((err) => console.error(err));
+
+  var next_request = function(content) {
+    var parsed = JSON.parse(content)
+    var locationId = parsed.resultsPage.results.location[0].metroArea.id
+    var url = 'https://api.songkick.com/api/3.0/events.json?apikey=' + process.env.SONGKICK_API + '&artist_name=' + concertArtist + '&location=sk:' + locationId
+    getContent(url)
+    .then(function(concert_response) {
+      var last_resp = JSON.parse(concert_response)
+      var results = last_resp.resultsPage.results;
+      var size = last_resp.resultsPage.totalEntries;
+
+      if (size !== 0) {
+        var eventType = results.event[0].type.toLowerCase()
+        var displayName = results.event[0].displayName
+        var uri = results.event[0].uri
+        const response = {
+          statusCode: 200,
+          body: JSON.stringify({
+            response_type: "in_channel",
+            text: "I found a " + eventType,
+            attachments: [{
+              title: displayName,
+              title_link: uri
+            }]
+          })
+        } // end response
+        console.log("sending artist callback " + response.body)
+        callback(null, response);
+      } else {
+        const response = {
+          statusCode: 200,
+          body: JSON.stringify({
+            response_type: "in_channel",
+            text: "It doesn't seem like " + capitalize(artist) + " will be in " + capitalize(location) + " anytime soon."
+          })
+        }
+        console.log("sending failed artist callback " + response.body)
+        callback(null, response);
+      } // end if
+    }) // then
+    .catch((err) => console.error(err));
+  }
+}
