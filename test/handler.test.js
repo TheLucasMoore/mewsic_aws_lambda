@@ -1,6 +1,7 @@
 'use strict';
 
 var expect = require( 'chai' ).expect;
+var config = require('./config.json');
 var LambdaTester = require( 'lambda-tester' );
 var mewsicLambda = require( '../handler' );
 var sinon = require('sinon')
