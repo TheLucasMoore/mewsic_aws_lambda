@@ -35,7 +35,8 @@ module.exports.mewsic = (event, context, callback) => {
 };
 
 module.exports.artist = (event, context, callback) => {
-  var artist = event.queryStringParameters.text.replace(" ", "+")
+  console.log("EVENT TEXT " + event.text)
+  var artist = event.text.replace(" ", "+")
   var spotify_url = "https://api.spotify.com/v1/search?q=" + artist + "&type=artist"
   console.log("artist end point begun for " + artist)
 
@@ -54,12 +55,9 @@ module.exports.artist = (event, context, callback) => {
         var last_resp = JSON.parse(last_fm_response)
         var bio = last_resp.artist.bio.summary.split("<a");
         const response = {
-          statusCode: 200,
-          body: JSON.stringify({
-            response_type: "in_channel",
-            link: bio[0] + " ... " + link
-          })
-        } // end response
+          response_type: "in_channel",
+          text: bio[0] + " " + link
+        }
         console.log("sending artist callback " + response.body)
         callback(null, response);
       })
@@ -69,7 +67,7 @@ module.exports.artist = (event, context, callback) => {
 };
 
 module.exports.album = (event, context, callback) => {
-  var album = event.queryStringParameters.text
+  var album = event.text
   console.log("Album request began for " + album)
   var artistUrl = 'https://api.spotify.com/v1/search?q=' + album.replace(" ", "+") + '&type=album'
 
@@ -84,17 +82,13 @@ module.exports.album = (event, context, callback) => {
       var albumLink = parsed.albums.items[0].external_urls.spotify
       var albumArt = parsed.albums.items[0].images[0].url
       const response = {
-        statusCode: 200,
-        body: JSON.stringify({
-          "response_type": "in_channel",
-          "text": albumLink,
-          "attachments": [
-          {
-            "title": albumName,
-            "image_url": albumArt
-          }]
-        })
-      };
+        response_type: "in_channel",
+        text: albumLink,
+        attachments: [{
+          title: albumName,
+          image_url: albumArt
+        }]
+      }
       console.log("sending album callback " + response.body)
       callback(null, response);
     }
@@ -102,7 +96,7 @@ module.exports.album = (event, context, callback) => {
 };
 
 module.exports.genius = (event, context, callback) => {
-  var lyrics = event.queryStringParameters.text
+  var lyrics = event.text
   console.log("genius request begun for " + lyrics)
   var genius_url = "https://api.genius.com/search?access_token=" + process.env.GENIUS_ACCESS + "&q=" + lyrics
 
@@ -117,16 +111,13 @@ module.exports.genius = (event, context, callback) => {
       var song_title = parsed.response.hits[0].result.full_title
       var song_image = parsed.response.hits[0].result.header_image_thumbnail_url;
       const response = {
-        statusCode: 200,
-        body: JSON.stringify({
-        "response_type": "in_channel",
-        "attachments": [{
-          "title": song_title,
-          "title_link": song_url,
-          "image_url": song_image
+        response_type: "in_channel",
+        attachments: [{
+          title: song_title,
+          title_link: song_url,
+          image_url: song_image
         }]
-      })
-    }
+      }
     console.log("sending genius callback " + response.body)
     callback(null, response);
     }
@@ -134,7 +125,7 @@ module.exports.genius = (event, context, callback) => {
 };
 
 module.exports.concert = (event, context, callback) => {
-  var text = event.queryStringParameters.text.split(", ")
+  var text = event.text.split(", ")
   var location = text[0];
   var artist = text[1];
   var concertArtist = artist.replace(" ", "+")
@@ -159,25 +150,19 @@ module.exports.concert = (event, context, callback) => {
         var displayName = results.event[0].displayName
         var uri = results.event[0].uri
         const response = {
-          statusCode: 200,
-          body: JSON.stringify({
-            response_type: "in_channel",
-            text: "I found a " + eventType,
-            attachments: [{
-              title: displayName,
-              title_link: uri
-            }]
-          })
-        } // end response
+          response_type: "in_channel",
+          text: "I found a " + eventType,
+          attachments: [{
+            title: displayName,
+            title_link: uri
+          }]
+        }
         console.log("sending artist callback " + response.body)
         callback(null, response);
       } else {
         const response = {
-          statusCode: 200,
-          body: JSON.stringify({
-            response_type: "in_channel",
-            text: "It doesn't seem like " + capitalize(artist) + " will be in " + capitalize(location) + " anytime soon."
-          })
+          response_type: "in_channel",
+          text: "It doesn't seem like " + capitalize(artist) + " will be in " + capitalize(location) + " anytime soon."
         }
         console.log("sending failed artist callback " + response.body)
         callback(null, response);
