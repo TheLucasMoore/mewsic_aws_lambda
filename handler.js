@@ -35,6 +35,8 @@ module.exports.mewsic = (event, context, callback) => {
 };
 
 module.exports.artist = (event, context, callback) => {
+  // http://www.ryanray.me/serverless-slack-integrations
+  // format conversion of urlencoded -> JSON at API Gateway
   console.log("EVENT TEXT " + event.text)
   var artist = event.text.replace(" ", "+")
   var spotify_url = "https://api.spotify.com/v1/search?q=" + artist + "&type=artist"
