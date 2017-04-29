@@ -54,6 +54,23 @@ describe( 'mewsicLambda', function() {
           .verify( done );
   });
 
+  it( 'succesfully calls /song endpoint', function( done ) {
+
+      let response = {
+        "response_type": "in_channel",
+        "text": "https://open.spotify.com/track/0y60itmpH0aPKsFiGxmtnh",
+      }
+
+      LambdaTester( mewsicLambda.song )
+          .event( { queryStringParameters: { text: 'wait a minute willow smith' } } )
+          .expectResult( function( result ) {
+            expect( result ).to.exist
+            expect( result.statusCode ).to.equal(200)
+            expect( result.body ).to.equal(response);
+          })
+          .verify( done );
+  });
+
   it( 'succesfully calls /genius endpoint', function( done ) {
 
       let response = {

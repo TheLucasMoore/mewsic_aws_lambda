@@ -97,6 +97,29 @@ module.exports.album = (event, context, callback) => {
   }
 };
 
+module.exports.song = (event, context, callback) => {
+  var song = event.text
+  console.log("Song request began for " + song)
+  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
+
+  getContent(artistUrl)
+    .then((content) => parse_response(content))
+    .catch((err) => console.error(err));
+
+  var parse_response = function(content) {
+    var parsed = JSON.parse(content)
+    if (parsed.tracks.items.length > 0) {
+      var songLink = parsed.tracks.items[0].external_urls.spotify
+      const response = {
+        response_type: "in_channel",
+        text: songLink,
+      }
+      console.log("sending song callback " + response.body)
+      callback(null, response);
+    }
+  }
+};
+
 module.exports.genius = (event, context, callback) => {
   var lyrics = event.text
   console.log("genius request begun for " + lyrics)
