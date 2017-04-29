@@ -77,6 +77,13 @@ functions:
       - http:
           path: /album
           method: post
+  song:
+    handler: handler.song
+    description: returns song information from spotify
+    events:
+      - http:
+          path: /song
+          method: post
   genius:
     handler: handler.genius
     description: returns lyric information from genius

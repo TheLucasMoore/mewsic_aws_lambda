@@ -60,7 +60,7 @@ module.exports.artist = (event, context, callback) => {
           response_type: "in_channel",
           text: bio[0] + " " + link
         }
-        console.log("sending artist callback " + response.body)
+        console.log("sending artist callback " + response)
         callback(null, response);
       })
       .catch((err) => console.error(err));
@@ -91,13 +91,14 @@ module.exports.album = (event, context, callback) => {
           image_url: albumArt
         }]
       }
-      console.log("sending album callback " + response.body)
+      console.log("sending album callback " + response)
       callback(null, response);
     }
   }
 };
 
 module.exports.song = (event, context, callback) => {
+  console.log(event)
   var song = event.text
   console.log("Song request began for " + song)
   var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
@@ -114,7 +115,7 @@ module.exports.song = (event, context, callback) => {
         response_type: "in_channel",
         text: songLink,
       }
-      console.log("sending song callback " + response.body)
+      console.log("sending song callback " + response)
       callback(null, response);
     }
   }
@@ -143,7 +144,7 @@ module.exports.genius = (event, context, callback) => {
           image_url: song_image
         }]
       }
-    console.log("sending genius callback " + response.body)
+    console.log("sending genius callback " + response)
     callback(null, response);
     }
   }
@@ -182,14 +183,14 @@ module.exports.concert = (event, context, callback) => {
             title_link: uri
           }]
         }
-        console.log("sending artist callback " + response.body)
+        console.log("sending artist callback " + response)
         callback(null, response);
       } else {
         const response = {
           response_type: "in_channel",
           text: "It doesn't seem like " + capitalize(artist) + " will be in " + capitalize(location) + " anytime soon."
         }
-        console.log("sending failed artist callback " + response.body)
+        console.log("sending failed artist callback " + response)
         callback(null, response);
       } // end if
     }) // then
