@@ -23,7 +23,7 @@ const errorResponse = function(input) {
     response_type: "ephemeral",
     text: "I didn't find anything related to " + input + ". Check your spelling?"
   }
-  return response
+  callback(null, response);
 }
 
 // JavaScript. 'Tis a silly language.
@@ -106,14 +106,14 @@ module.exports.album = (event, context, callback) => {
 };
 
 module.exports.song = (event, context, callback) => {
-  console.log(event.text)
-  var song = event.text.replace(" ", "+")
+  console.log("Song Endpoint Started")
+  var song = event.text
   console.log("Song request began for " + song)
-  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song + '&type=track'
+  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
 
   getContent(artistUrl)
     .then((content) => parse_response(content))
-    .catch((err) => console.error(err));
+    .catch((err) => errorResponse(err));
 
   var parse_response = function(content) {
     var parsed = JSON.parse(content)
