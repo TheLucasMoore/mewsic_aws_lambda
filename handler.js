@@ -18,6 +18,14 @@ const getContent = function(url) {
   })
 };
 
+const errorResponse = function(input) {
+  let response = {
+    response_type: "ephemeral",
+    text: "I didn't find anything related to " + input + ". Check your spelling?"
+  }
+  return response
+}
+
 // JavaScript. 'Tis a silly language.
 var capitalize = function(string) {
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
@@ -98,10 +106,10 @@ module.exports.album = (event, context, callback) => {
 };
 
 module.exports.song = (event, context, callback) => {
-  console.log(event)
-  var song = event.text
+  console.log(event.text)
+  var song = event.text.replace(" ", "+")
   console.log("Song request began for " + song)
-  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
+  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song + '&type=track'
 
   getContent(artistUrl)
     .then((content) => parse_response(content))
@@ -117,6 +125,9 @@ module.exports.song = (event, context, callback) => {
       }
       console.log("sending song callback " + response)
       callback(null, response);
+    } else {
+      var nothing_found = errorResponse(event.text)
+      callback(null, nothing_found);
     }
   }
 };
