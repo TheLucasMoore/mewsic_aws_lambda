@@ -34,6 +34,8 @@ const errorResponse = function(input) {
 }
 
 // SPOTIFY changed their API to request hourly credentials
+// https://developer.spotify.com/web-api/authorization-guide/#client-credentials-flow
+// https://github.com/spotify/web-api-auth-examples/tree/master/client_credentials
 
 var SpotifyAuthOptions = {
   url: 'https://accounts.spotify.com/api/token',
