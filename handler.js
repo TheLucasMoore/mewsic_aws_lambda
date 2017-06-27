@@ -1,7 +1,8 @@
 'use strict';
+var request = require('request');
 // https://github.com/maxogden/art-of-node#callbacks
 
-// WHO NEEDS DEPENDENCIES?!
+// Rollin' my own get requests, just for kicks
 // https://www.tomas-dvorak.cz/posts/nodejs-request-without-dependencies/
 const getContent = function(url) {
   return new Promise((resolve, reject) => {
@@ -18,6 +19,12 @@ const getContent = function(url) {
   })
 };
 
+// JavaScript. 'Tis a silly language.
+var capitalize = function(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+}
+
+// still needs to be implemented on all the end points
 const errorResponse = function(input) {
   let response = {
     response_type: "ephemeral",
@@ -26,10 +33,28 @@ const errorResponse = function(input) {
   callback(null, response);
 }
 
-// JavaScript. 'Tis a silly language.
-var capitalize = function(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-}
+// SPOTIFY changed their API to request hourly credentials
+
+var SpotifyAuthOptions = {
+  url: 'https://accounts.spotify.com/api/token',
+  headers: {
+    'Authorization': 'Basic ' + (new Buffer(proces.env.SPOTIFY_CLIENT_ID + ':' + proces.env.SPOTIFY_CLIENT_SECRET).toString('base64'))
+  },
+  form: {
+    grant_type: 'client_credentials'
+  },
+  json: true
+};
+
+var currentSpotifyToken = "" // global variable should dynamically update if we get a 401
+
+request.post(SpotifyAuthOptions, function(error, response, body) {
+  if (!error && response.statusCode === 200) {
+    currentSpotifyToken = body.access_token;
+  }
+});
+
+/// START THE ACTUAL END POINTS ///
 
 module.exports.mewsic = (event, context, callback) => {
   const response = {
@@ -107,7 +132,8 @@ module.exports.album = (event, context, callback) => {
 
 module.exports.song = (event, context, callback) => {
   console.log("Song Endpoint Started")
-  var song = event.text
+  var raw_song = event.text
+  var song = raw_song.replace("by ", "")
   console.log("Song request began for " + song)
   var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
 
