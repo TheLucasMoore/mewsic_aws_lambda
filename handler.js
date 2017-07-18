@@ -4,6 +4,7 @@ var request = require('request');
 
 // Rollin' my own get requests, just for kicks
 // https://www.tomas-dvorak.cz/posts/nodejs-request-without-dependencies/
+// TODO: May just convery to use Request, since I need it for posting Spotify API requests anywhoo
 const getContent = function(url) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? require('https') : require('http');
@@ -24,39 +25,24 @@ var capitalize = function(string) {
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 }
 
-// still needs to be implemented on all the end points
-const errorResponse = function(input) {
+// TODO still needs to be implemented on all the end points
+var errorResponse = function(input) {
   let response = {
     response_type: "ephemeral",
     text: "I didn't find anything related to " + input + ". Check your spelling?"
   }
-  callback(null, response);
+  return response // I feel like I'm writing Ruby here. May be incorrect for JS.
 }
 
-// SPOTIFY changed their API to request hourly credentials
+// Spotify changed their API to request hourly credentials. Adds another request in the flow.
+// A lambda won't presist and know when an hour has passed, so request creds each time.
+// Helpful Links:
 // https://developer.spotify.com/web-api/authorization-guide/#client-credentials-flow
 // https://github.com/spotify/web-api-auth-examples/tree/master/client_credentials
 
-var SpotifyAuthOptions = {
-  url: 'https://accounts.spotify.com/api/token',
-  headers: {
-    'Authorization': 'Basic ' + (new Buffer(proces.env.SPOTIFY_CLIENT_ID + ':' + proces.env.SPOTIFY_CLIENT_SECRET).toString('base64'))
-  },
-  form: {
-    grant_type: 'client_credentials'
-  },
-  json: true
-};
-
-var currentSpotifyToken = "" // global variable should dynamically update if we get a 401
-
-request.post(SpotifyAuthOptions, function(error, response, body) {
-  if (!error && response.statusCode === 200) {
-    currentSpotifyToken = body.access_token;
-  }
-});
-
+/// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 /// START THE ACTUAL END POINTS ///
+/// ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
 module.exports.mewsic = (event, context, callback) => {
   const response = {
@@ -72,40 +58,74 @@ module.exports.mewsic = (event, context, callback) => {
 module.exports.artist = (event, context, callback) => {
   // http://www.ryanray.me/serverless-slack-integrations
   // format conversion of urlencoded -> JSON at API Gateway
-  console.log("EVENT TEXT " + event.text)
-  var artist = event.text.replace(" ", "+")
-  var spotify_url = "https://api.spotify.com/v1/search?q=" + artist + "&type=artist"
-  console.log("artist end point begun for " + artist)
 
-  getContent(spotify_url)
-    .then((content) => next_request(content))
-    .catch((err) => console.error(err));
+  var artist = event.text
+  console.log("Arist Endpoint " + artist)
+  let SpotifyAuthOptions = {
+    url: 'https://accounts.spotify.com/api/token',
+    headers: {
+      'Authorization': 'Basic ' + (new Buffer(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64'))
+    },
+    form: {
+      grant_type: 'client_credentials'
+    },
+    json: true
+  };
 
-  var next_request = function(content) {
-    var parsed = JSON.parse(content)
-    var link = parsed.artists.items[0].external_urls.spotify;
-    // to ensure last fm bio matches, pull it from Spotify request
-    var artist_name = parsed.artists.items[0].name.replace(" ", "+")
-    var lastFmUrl = 'https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' + artist_name + '&api_key=' + process.env.LAST_FM + '&format=json'
-      getContent(lastFmUrl)
-      .then(function(last_fm_response) {
-        var last_resp = JSON.parse(last_fm_response)
-        var bio = last_resp.artist.bio.summary.split("<a");
-        const response = {
-          response_type: "in_channel",
-          text: bio[0] + " " + link
+  request.post(SpotifyAuthOptions, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      var token = body.access_token;
+      var options = {
+        url: 'https://api.spotify.com/v1/search?q='+ artist + '&type=artist',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        json: true
+      };
+      request.get(options, function(error, response, body) {
+        var size = body.artists.items.length
+        if (!error && response.statusCode === 200 && size > 0) {
+          var artist_name = body.artists.items[0].name.replace(" ", "+")
+          var link = body.artists.items[0].external_urls.spotify;
+          var lastFmUrl = 'https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=' + artist_name + '&api_key=' + process.env.LAST_FM + '&format=json'
+          request.get(lastFmUrl, function(error, response, body) {
+            var parsed = JSON.parse(body)
+            console.log(parsed.artist)
+            var bio = parsed.artist.bio.summary.split("<a");
+            console.log("BIO " + bio[0] + "LINK " + link)
+            let message = {
+              response_type: "in_channel",
+              text: bio[0] + link
+            }
+            console.log("sending artist callback " + message["text"])
+            callback(null, message);
+          })
+        } else {
+          let message = {
+            response_type: "ephemeral",
+            text: "Hmmm... are you sure you spelled " + artist + " correctly?"
+          }
+          console.log("Error for artist " + artist)
+          callback(null, message);
         }
-        console.log("sending artist callback " + response)
-        callback(null, response);
       })
-      .catch((err) => console.error(err));
-      // add an error response?
-  }
+    } else {
+      let message = {
+        response_type: "ephemeral",
+        text: "Hmmm... seems like Spotify is down. Try again later."
+      }
+      console.log("Error for artist, auth token failed")
+      callback(null, message);
+    }
+  })
 };
 
 module.exports.album = (event, context, callback) => {
+
+  var freshToken = getSpotifyCreds();
+
   var album = event.text
-  console.log("Album request began for " + album)
+  console.log("Album request for " + album)
   var artistUrl = 'https://api.spotify.com/v1/search?q=' + album.replace(" ", "+") + '&type=album'
 
   getContent(artistUrl)
@@ -128,14 +148,21 @@ module.exports.album = (event, context, callback) => {
       }
       console.log("sending album callback " + response)
       callback(null, response);
+    } else {
+      let error_message = errorResponse(lyrics)
+      callback(null, error_message)
     }
   }
 };
 
 module.exports.song = (event, context, callback) => {
   console.log("Song Endpoint Started")
+
+  var freshToken = getSpotifyCreds();
+
   var raw_song = event.text
   var song = raw_song.replace("by ", "")
+
   console.log("Song request began for " + song)
   var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
 
@@ -154,8 +181,8 @@ module.exports.song = (event, context, callback) => {
       console.log("sending song callback " + response)
       callback(null, response);
     } else {
-      var nothing_found = errorResponse(event.text)
-      callback(null, nothing_found);
+      let error_message = errorResponse(event.text)
+      callback(null, error_message);
     }
   }
 };
@@ -185,6 +212,9 @@ module.exports.genius = (event, context, callback) => {
       }
     console.log("sending genius callback " + response)
     callback(null, response);
+    } else {
+      let error_message = errorResponse(lyrics)
+      callback(null, error_message)
     }
   }
 };
