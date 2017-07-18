@@ -122,69 +122,120 @@ module.exports.artist = (event, context, callback) => {
 
 module.exports.album = (event, context, callback) => {
 
-  var freshToken = getSpotifyCreds();
-
   var album = event.text
   console.log("Album request for " + album)
-  var artistUrl = 'https://api.spotify.com/v1/search?q=' + album.replace(" ", "+") + '&type=album'
+  let SpotifyAuthOptions = {
+    url: 'https://accounts.spotify.com/api/token',
+    headers: {
+      'Authorization': 'Basic ' + (new Buffer(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64'))
+    },
+    form: {
+      grant_type: 'client_credentials'
+    },
+    json: true
+  };
 
-  getContent(artistUrl)
-    .then((content) => parse_response(content))
-    .catch((err) => console.error(err));
-
-  var parse_response = function(content) {
-    var parsed = JSON.parse(content)
-    if (parsed.albums.items.length > 0) {
-      var albumName = parsed.albums.items[0].name
-      var albumLink = parsed.albums.items[0].external_urls.spotify
-      var albumArt = parsed.albums.items[0].images[0].url
-      const response = {
-        response_type: "in_channel",
-        text: albumLink,
-        attachments: [{
-          title: albumName,
-          image_url: albumArt
-        }]
-      }
-      console.log("sending album callback " + response)
-      callback(null, response);
+  request.post(SpotifyAuthOptions, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      var token = body.access_token;
+      var options = {
+        url: 'https://api.spotify.com/v1/search?q=' + album.replace(" ", "+") + '&type=album',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        json: true
+      };
+      request.get(options, function(error, response, body) {
+        if (body.albums.items.length > 0) {
+          var albumName = body.albums.items[0].name
+          var albumLink = body.albums.items[0].external_urls.spotify
+          var albumArt = body.albums.items[0].images[0].url
+          console.log("name " + albumName + "link " + albumLink + "art " + albumArt)
+          let response = {
+            response_type: "in_channel",
+            text: albumLink,
+            attachments: [{
+              title: albumName,
+              title_link: albumLink,
+              image_url: albumArt
+            }]
+          }
+          console.log("sending album callback " + response['text'])
+          callback(null, response);
+        } else {
+          let message = {
+            response_type: "ephemeral",
+            text: "Hmmm... are you sure " + album + " is spelled correctly?"
+          }
+          console.log("Error for album " + album)
+          callback(null, message);
+        };
+      })
     } else {
-      let error_message = errorResponse(lyrics)
-      callback(null, error_message)
+    let message = {
+      response_type: "ephemeral",
+      text: "Hmmm... seems like Spotify is down. Try again later."
     }
-  }
+    console.log("Error for album, auth token failed")
+    callback(null, message);
+    }
+  })
 };
 
 module.exports.song = (event, context, callback) => {
-  console.log("Song Endpoint Started")
-
-  var freshToken = getSpotifyCreds();
 
   var raw_song = event.text
   var song = raw_song.replace("by ", "")
+  console.log("Song request for " + raw_song)
 
-  console.log("Song request began for " + song)
-  var artistUrl = 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track'
+  let SpotifyAuthOptions = {
+    url: 'https://accounts.spotify.com/api/token',
+    headers: {
+      'Authorization': 'Basic ' + (new Buffer(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64'))
+    },
+    form: {
+      grant_type: 'client_credentials'
+    },
+    json: true
+  };
 
-  getContent(artistUrl)
-    .then((content) => parse_response(content))
-    .catch((err) => errorResponse(err));
-
-  var parse_response = function(content) {
-    var parsed = JSON.parse(content)
-    if (parsed.tracks.items.length > 0) {
-      var songLink = parsed.tracks.items[0].external_urls.spotify
-      const response = {
-        response_type: "in_channel",
-        text: songLink,
-      }
-      console.log("sending song callback " + response)
-      callback(null, response);
+  request.post(SpotifyAuthOptions, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      var token = body.access_token;
+      var options = {
+        url: 'https://api.spotify.com/v1/search?q=' + song.replace(" ", "+") + '&type=track',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        json: true
+      };
+      request.get(options, function(error, response, body) {
+        if (body.tracks.items.length > 0) {
+          var songLink = body.tracks.items[0].external_urls.spotify
+          const response = {
+            response_type: "in_channel",
+            text: songLink,
+          }
+          console.log("sending song callback " + response)
+          callback(null, response);
+        } else {
+          let message = {
+            response_type: "ephemeral",
+            text: "Hmmm... are you sure there's a song called " + raw_song + "?"
+          }
+          console.log("Error for song " + raw_song)
+          callback(null, message);
+        };
+      })
     } else {
-      let error_message = errorResponse(event.text)
-      callback(null, error_message);
+    let message = {
+      response_type: "ephemeral",
+      text: "Hmmm... seems like Spotify is down. Try again later."
     }
-  }
+    console.log("Error for song, auth token failed")
+    callback(null, message);
+    }
+  })
 };
 
 module.exports.genius = (event, context, callback) => {
@@ -205,6 +256,8 @@ module.exports.genius = (event, context, callback) => {
       const response = {
         response_type: "in_channel",
         attachments: [{
+          color: "#36a64f",
+          author_name: "Genius API",
           title: song_title,
           title_link: song_url,
           image_url: song_image
